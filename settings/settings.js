@@ -1,4 +1,5 @@
-import { getItemFromLocal, modifyItemInLocal } from "../BrowserStorageManager.js";
+import { getItemFromLocal, modifyItemInLocal } from "../global/BrowserStorageManager.js";
+import { extractURLHost } from "../global/utils.js";
 
 let remove_buttons_event_controller;
 async function load_allowed_domains() {
@@ -41,18 +42,6 @@ async function load_allowed_domains() {
     listContainerElement.replaceChildren(...domainListDomElements);
 }
 
-function extractURLHost(text) {
-    let url = text + ""; // cast to string (is this needed?)
-
-    // We don't actually care about the protocol as we only compare url.host
-    // But the URL object will fail to create if no protocol is provided
-    if (url.slice(0, 4) !== "http") {
-        url = "https://" + url;
-    }
-    const newUrl = new URL(url);
-    return newUrl.host;
-}
-
 async function saveOptions(e) {
     let url;
     try {
@@ -77,6 +66,3 @@ async function saveOptions(e) {
 
 load_allowed_domains();
 document.querySelector("form").addEventListener("submit", saveOptions);
-
-
-console.log("dark mode? ", window.matchMedia("(prefers-color-scheme: dark)"))
