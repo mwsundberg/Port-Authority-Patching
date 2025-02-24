@@ -1,30 +1,24 @@
-function toggleEnabled(ev){
-  browser.runtime.sendMessage({type: 'toggleEnabled', value: ev.target.checked});
-}
+// Can attach options page link instantly
+document.getElementById('settings').addEventListener("click", () =>
+    browser.runtime.openOptionsPage());
 
-function setNotificationsAllowed(ev){
-  browser.runtime.sendMessage({type: 'setNotificationsAllowed', value: ev.target.checked});
-}
+// Await at the top level to prevent attaching listeners that won't match storage state
+const fetched_settings = await browser.runtime.sendMessage({ type: 'popupInit' });
 
-function settingsClicked(ev){
-  browser.runtime.openOptionsPage();
-}
+// Blocking switch bindings
+const blocking_switch = document.getElementById("blocking_switch");
+blocking_switch.checked = fetched_settings.isListening;
+blocking_switch.addEventListener("change", (ev) =>
+    browser.runtime.sendMessage({
+        type: 'toggleEnabled',
+        value: ev.target.checked
+    }));
 
-browser.runtime.sendMessage({type: 'popupInit'}).then((response) => {
-  document.getElementById("globalStatusPortAuthority").checked = response.isListening;
-
-  // Add an event listener to the switch
-  document.getElementById('globalStatusPortAuthority').addEventListener("change", toggleEnabled);
-
-
-  document.getElementById("notificationStatusPortAuthority").checked = response.notificationsAllowed;
-
-  // Add an event listener to the switch
-  document.getElementById('notificationStatusPortAuthority').addEventListener("change", setNotificationsAllowed);
-
-  // Change to settings page
-  document.getElementById('settings').addEventListener("click", settingsClicked);
-
-  // Make sure this doesn't run too early
-  setTimeout(() => document.documentElement.classList.remove('loading'), 5);
-});
+// Notifications switch bindings
+const notifications_switch = document.getElementById("notifications_switch");
+notifications_switch.checked = fetched_settings.notificationsAllowed;
+notifications_switch.addEventListener("change", (ev) =>
+    browser.runtime.sendMessage({
+        type: 'setNotificationsAllowed',
+        value: ev.target.checked
+    }));

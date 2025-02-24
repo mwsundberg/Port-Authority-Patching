@@ -10,7 +10,7 @@
     <link rel="stylesheet" type="text/css" href="switchButtons.css">
     <style>
         body {
-            /* TODO Still have a weird right edge atm, trying to remove */
+            /* TODO Still have a weird right edge gap atm, trying to remove */
             width: 100%;
             min-width: 200px;
             padding: 0;
@@ -25,10 +25,6 @@
         /* Layout */
         .inline {
             display: inline;
-        }
-        .flex-stack {
-            display: flex;
-            flex-direction: column;
         }
         .flex-row {
             display: flex;
@@ -84,35 +80,55 @@
         .slider {
             margin-inline: min(1ch, 7px);
         }
+
+        /* Data populated zones */
+        .unpopulated {
+            display: none;
+        }
     </style>
 </head>
 
-<body class="flex-stack">
+<body>
     <header class="flex-row align-center red-bg">
-        <img src="../icons/logo-32.png" width="32" height="32" alt="PortAuthority Logo">
+        <img src="../icons/logo-32.png" width="32" height="32" alt="PortAuthority Logo" />
         <h1 class="inline">
             Port Authority
         </h1>
     </header>
+    <!-- Settings link -->
     <nav class="flex-row align-right">
         <a href="#" id="settings" class="flex-row">
-            <h2 class="inline">Options</h2>
-            <img src="../icons/settings.png" width="24" height="24" alt="Settings Gear">
+            <h2 class="inline">
+                Options
+            </h2>
+            <img src="../icons/settings.png" width="24" height="24" alt="Settings Gear" />
         </a>
     </nav>
+    <!-- Config switches -->
     <label class="flex-row switch">
-        <input type="checkbox" id="globalStatusPortAuthority">
+        <input type="checkbox" id="blocking_switch" />
         <span class="slider round"></span>
         Blocking
     </label>
     <label class="flex-row switch">
-        <input type="checkbox" id="notificationStatusPortAuthority">
+        <input type="checkbox" id="notifications_switch" />
         <span class="slider round"></span>
         Notifications
     </label>
-    <div id="blocked_data_display"></div>
-
-    <script type="module" src="switch.js"></script>
-    <script type="module" src="PopupUI.js"></script>
+    <!-- Drop zones for parsed data -->
+    <section id="ports_blocked" class="unpopulated">
+        <h2>Blocked Port Scans:</h2>
+        <ul class="dropzone">
+            <!-- Inserting data here -->
+        </ul>
+    </section>
+    <section id="domains_blocked" class="unpopulated">
+        <h2>Blocked Tracking Scripts:</h2>
+        <ul class="dropzone">
+            <!-- Inserting data here -->
+        </ul>
+    </section>
+    <script type="module" src="./switch.js"></script>
+    <script type="module" src="./PopupUI.js"></script>
 </body>
 </html>
