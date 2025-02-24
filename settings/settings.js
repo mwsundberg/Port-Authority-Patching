@@ -77,3 +77,6 @@ async function saveOptions(e) {
 
 load_allowed_domains();
 document.querySelector("form").addEventListener("submit", saveOptions);
+
+
+console.log("dark mode? ", window.matchMedia("(prefers-color-scheme: dark)"))
