@@ -54,10 +54,11 @@ async function renderBlockedPorts() {
         // Build the wrapper for displaying the host name and ports blocked
         const host = hosts[i_host];
         const host_wrapper = buildCollapseWrapperAndToggle(
-            host + "View Ports"
+            host + " View Ports"
         );
 
         const ports = data_blocked_ports[host];
+        const hosts_ul = document.createElement('ul')
 
         // Add each port to the HTML
         for (let i_port = 0; i_port < ports.length; i_port++) {
