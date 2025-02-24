@@ -8,14 +8,86 @@
     <title>Port Authority</title>
 
     <link rel="stylesheet" type="text/css" href="switchButtons.css">
-    <link rel="stylesheet" type="text/css" href="core.css">
+    <style>
+        body {
+            /* TODO Still have a weird right edge atm, trying to remove */
+            width: 100%;
+            min-width: 200px;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            color: #1c1b22; /* Color nabbed from Firefox Dev Edition */
+        }
+        h1, h2 {
+            margin: 0;
+        }
+
+        /* Layout */
+        .inline {
+            display: inline;
+        }
+        .flex-stack {
+            display: flex;
+            flex-direction: column;
+        }
+        .flex-row {
+            display: flex;
+            align-items: center;
+        }
+        .align-center {
+            justify-content: center;
+        }
+        .align-right {
+            justify-content: flex-end;
+        }
+
+        /* Header */
+        header {
+            padding: min(2rem, 20px) min(5ch, 30px);
+        }
+        header img {
+            /* Visual alignment tweaks, finicky */
+            margin-bottom: -5px;
+            margin-right: 5px;
+            margin-left: -5px;
+        }
+        .red-bg {
+            background-color:#800000;
+            color: white;
+        }
+
+        /* Options */
+        #settings {
+            text-decoration: none;
+            color: #1c1b22;
+            margin: min(0.5rem, 10px) min(1ch, 7px);
+        }
+        #settings h2 {
+            font-size: 1.25rem;
+        }
+        #settings img {
+            margin-left: 2.5px;
+        }
+        #settings:hover {
+            /* Slightly hacky yet since the img isn't a svg and stylable this is the best way to indicate hover state */
+            opacity: 0.75;
+        }
+
+        /* Switches */
+        .switch-wrapper {
+            padding: min(0.25rem, 7px) min(1ch, 7px);
+        }
+        .slider {
+            margin-right: min(1ch, 7px);
+        }
+    </style>
 </head>
 
 <body class="flex-stack">
     <header class="flex-row align-center red-bg">
         <img src="../icons/logo-32.png" width="32" height="32" alt="PortAuthority Logo">
         <h1 class="inline">
-                        Port Authority
+            Port Authority
         </h1>
     </header>
     <nav class="flex-row align-right">
@@ -23,22 +95,21 @@
             <h2 class="inline">Options</h2>
             <img src="../icons/settings.png" width="24" height="24" alt="Settings Gear">
         </a>
-            </nav>
+    </nav>
     <div class="flex-row switch-wrapper">
         <label class="flex-row switch">
-                    <input type="checkbox" id="globalStatusPortAuthority">
-                    <span class="slider round"></span>
+            <input type="checkbox" id="globalStatusPortAuthority">
+            <span class="slider round"></span>
             Blocking
-                </label>
-        </div>
-
+        </label>
+    </div>
     <div class="flex-row switch-wrapper">
         <label class="flex-row switch">
-                    <input type="checkbox" id="notificationStatusPortAuthority">
-                    <span class="slider round"></span>
+            <input type="checkbox" id="notificationStatusPortAuthority">
+            <span class="slider round"></span>
             Notifications
-                </label>
-            </div>
+        </label>
+    </div>
     <div id="blocked_data_display"></div>
 
     <script type="module" src="switch.js"></script>
