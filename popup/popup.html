@@ -34,6 +34,10 @@
             display: flex;
             align-items: center;
         }
+        .flex-flip {
+            display: flex;
+            flex-direction: row-reverse;
+        }
         .align-center {
             justify-content: center;
         }
@@ -80,10 +84,6 @@
         .slider {
             margin-inline: min(1ch, 7px);
         }
-        .flex-flip {
-            display: flex;
-            flex-direction: row-reverse;
-        }
     </style>
 </head>
 
@@ -100,12 +100,12 @@
             <img src="../icons/settings.png" width="24" height="24" alt="Settings Gear">
         </a>
     </nav>
-    <label class="flex-row flex-flip switch">
+    <label class="flex-row switch">
         <input type="checkbox" id="globalStatusPortAuthority">
         <span class="slider round"></span>
         Blocking
     </label>
-    <label class="flex-row flex-flip switch">
+    <label class="flex-row switch">
         <input type="checkbox" id="notificationStatusPortAuthority">
         <span class="slider round"></span>
         Notifications
