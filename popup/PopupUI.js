@@ -27,14 +27,12 @@ function buildCollapseWrapperAndToggle(summary_contents) {
 
 /**
  * Data fetching only, separated from rendering
- * @returns {Array<string> | void} Ports blocked by the current tab
  */
 async function getCurrentTabsBlockedPorts(data_type) {
-    const tabId = getActiveTabId();
-
     const all_tabs_data = await getItemFromLocal(data_type, {});
     if (isObjectEmpty(all_tabs_data)) return;
 
+    const tabId = await getActiveTabId();
     return all_tabs_data[tabId];
 }
 
@@ -47,6 +45,7 @@ const blocked_ports_inner = document.querySelector("#blocked_ports .dropzone");
 async function renderBlockedPorts() {
     const data_blocked_ports = await getCurrentTabsBlockedPorts("blocked_ports");
     if(!data_blocked_ports) return;
+    console.log("Ports data: ", data_blocked_ports)
 
     const hosts = Object.keys(data_blocked_ports);
 
@@ -82,7 +81,7 @@ const blocked_hosts_inner = document.querySelector("#blocked_hosts .dropzone");
 async function updateBlockedHostsDisplay() {
     const data_blocked_hosts = await getCurrentTabsBlockedPorts("blocked_hosts");
     if(!data_blocked_hosts) return;
-    console.log(data_blocked_hosts)
+    console.log("Hosts data: ", data_blocked_hosts)
 
     // Build a list of host names as li elements
     for (const host_name of data_blocked_hosts) {
