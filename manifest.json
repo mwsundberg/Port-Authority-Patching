@@ -22,7 +22,11 @@
   ],
 
   "background": {
-    "page": "background.html"
+    "page": "background/background.html"
+  },
+  
+  "options_ui": {
+    "page": "settings/settings.html"
   },
 
   "browser_action": {
@@ -39,9 +43,5 @@
     "gecko": {
       "id": "{6c00218c-707a-4977-84cf-36df1cef310f}"
     }
-  },
-
-  "options_ui": {
-    "page": "settings/settings.html"
   }
 }

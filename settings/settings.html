@@ -6,23 +6,20 @@
     <meta name="color-scheme" content="light dark" />
 
     <title>Port Authority</title>
+
+    <link rel="stylesheet" type="text/css" href="../global/colors.css" />
     <style>
         body {
             min-height: 100vh;
             font-size: 15px; /* Size set to match other tabs' values, need to check for an official way to match system styles rather than manual copying */
-        }
-        @media (prefers-color-scheme: dark) {
-            body {
-                /* Colors nabbed from Firefox Dev Edition */
-                background-color: #23222B;
-                color: #BFBFC9; 
-            }
+            background-color: var(--background);
+            color: var(--foreground);
         }
     </style>
 </head>
 
 <body>
-    <p style="color: red;"><strong>Make sure you enter a proper domain name (ebay.com)</strong></p>
+    <p style="color: var(--red);"><strong>Make sure you enter a proper domain name (ebay.com)</strong></p>
     <form>
         <label>Add new domain:</label>
         <input type="text" required id="add_domain" />

@@ -1,5 +1,5 @@
-import { clearLocalItems, getItemFromLocal, setItemInLocal, modifyItemInLocal } from "./BrowserStorageManager.js";
-import { getPortForProtocol } from "./constants.js";
+import { clearLocalItems, getItemFromLocal, setItemInLocal, modifyItemInLocal } from "../global/BrowserStorageManager.js";
+import { getPortForProtocol } from "../global/constants.js";
 
 let badges = {};
 let notificationsAllowed = true;

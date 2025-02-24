@@ -46,7 +46,7 @@
     width: calc(var(--height) - 2 * var(--pill-inset));
     left: var(--pill-inset);
     top: var(--pill-inset);
-    background-color: white;
+    background-color: var(--foreground);
     -webkit-transition: .4s;
     transition: .4s;
 }
@@ -57,11 +57,11 @@
 }
 
 input:checked + .slider {
-    background-color: #800000;
+    background-color: var(--red);
 }
 
 input:focus + .slider {
-    box-shadow: 0 0 1px #800000;
+    box-shadow: 0 0 1px var(--red);
 }
 
 input:checked + .slider::after {

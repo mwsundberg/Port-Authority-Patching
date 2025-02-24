@@ -2,12 +2,13 @@
 <html lang="en" class="loading">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
 
     <title>Port Authority</title>
 
-    <link rel="stylesheet" type="text/css" href="switchButtons.css">
+    <link rel="stylesheet" type="text/css" href="../global/colors.css" />
+    <link rel="stylesheet" type="text/css" href="switchButtons.css" />
     <style>
         body {
             /* TODO Still have a weird right edge gap atm, trying to remove */
@@ -16,8 +17,9 @@
             padding: 0;
             margin: 0;
             border: 0;
-            color: #1c1b22; /* Color nabbed from Firefox Dev Edition */
+            color: var(--foreground); /* Color nabbed from Firefox Dev Edition */
         }
+
         h1, h2 {
             margin: 0;
         }
@@ -52,14 +54,14 @@
             margin-left: -5px;
         }
         .red-bg {
-            background-color:#800000;
-            color: white;
+            background-color: var(--red);
+            color: var(--background);
         }
 
         /* Options */
         #settings {
             text-decoration: none;
-            color: #1c1b22;
+            color: var(--foreground);
             margin: min(0.5rem, 10px) min(1ch, 7px);
         }
         #settings h2 {
