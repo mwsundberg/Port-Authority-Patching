@@ -1,4 +1,4 @@
-import { isObjectEmpty } from "./utils";
+import { isObjectEmpty } from "./utils.js";
 
 // Key required to access the same lock that's used to control write access to localStorage
 const STORAGE_LOCK_KEY = "port_authority_storage_lock";
