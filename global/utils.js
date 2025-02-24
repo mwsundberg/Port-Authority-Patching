@@ -29,3 +29,12 @@ export function extractURLHost(text) {
     const newUrl = new URL(url);
     return newUrl.host;
 }
+
+/**
+ * 
+ * @param {Object} object
+ * @returns {boolean} 
+ */
+export function isObjectEmpty(object) {
+    return Object.keys(object).length === 0;
+}

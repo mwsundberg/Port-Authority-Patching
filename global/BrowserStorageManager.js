@@ -1,3 +1,5 @@
+import { isObjectEmpty } from "./utils";
+
 // Key required to access the same lock that's used to control write access to localStorage
 const STORAGE_LOCK_KEY = "port_authority_storage_lock";
 
@@ -27,7 +29,7 @@ async function UNLOCKED_getItemFromLocal(key, default_value) {
         storage_value = await browser.storage.local.get(key);
 
         // Objects not in storage return an empty object and don't need to be parsed as JSON
-        if(Object.keys(storage_value).length === 0) {
+        if(isObjectEmpty(storage_value)) {
             console.warn("No value found for [" + key + "], using default: ", {
                 [key]: default_value
             });
