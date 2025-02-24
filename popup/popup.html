@@ -74,11 +74,15 @@
         }
 
         /* Switches */
-        .switch-wrapper {
+        .switch {
             padding: min(0.25rem, 7px) min(1ch, 7px);
         }
         .slider {
-            margin-right: min(1ch, 7px);
+            margin-inline: min(1ch, 7px);
+        }
+        .flex-flip {
+            display: flex;
+            flex-direction: row-reverse;
         }
     </style>
 </head>
@@ -96,20 +100,16 @@
             <img src="../icons/settings.png" width="24" height="24" alt="Settings Gear">
         </a>
     </nav>
-    <div class="flex-row switch-wrapper">
-        <label class="flex-row switch">
-            <input type="checkbox" id="globalStatusPortAuthority">
-            <span class="slider round"></span>
-            Blocking
-        </label>
-    </div>
-    <div class="flex-row switch-wrapper">
-        <label class="flex-row switch">
-            <input type="checkbox" id="notificationStatusPortAuthority">
-            <span class="slider round"></span>
-            Notifications
-        </label>
-    </div>
+    <label class="flex-row flex-flip switch">
+        <input type="checkbox" id="globalStatusPortAuthority">
+        <span class="slider round"></span>
+        Blocking
+    </label>
+    <label class="flex-row flex-flip switch">
+        <input type="checkbox" id="notificationStatusPortAuthority">
+        <span class="slider round"></span>
+        Notifications
+    </label>
     <div id="blocked_data_display"></div>
 
     <script type="module" src="switch.js"></script>
