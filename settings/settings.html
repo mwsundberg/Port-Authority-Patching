@@ -2,24 +2,22 @@
 <html lang="en" class="loading">
 
 <head>
-    <title>Port Authority</title>
-    <!-- Required meta tags -->
+    <!-- Required meta tag -->
     <meta charset="utf-8">
+    <title>Port Authority</title>
 </head>
 
 <body>
     <p style="color: red;"><strong>Make sure you enter a proper domain name (ebay.com)</strong></p>
     <form>
         <label>Add new domain:</label>
-        <input type="text" id="add_domain" >
+        <input type="text" required id="add_domain" />
         <button type="submit">Save</button>
     </form>
     <br />
     <p><strong>Domains Allowed to Bypass PortAuthority Blocking:</strong></p>
     <ul id="allowedDomainsListID">
     </ul>
-    <br />
     <script type="module" src="settings.js"></script>
 </body>
-
 </html>

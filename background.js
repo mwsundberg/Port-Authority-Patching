@@ -1,5 +1,8 @@
+import { clearLocalItems, getItemFromLocal, setItemInLocal, modifyItemInLocal } from "./BrowserStorageManager.js";
+import { getPortForProtocol } from "./constants.js";
+
 let badges = {};
-var notificationsAllowed = true;
+let notificationsAllowed = true;
 
 function notifyPortScanning() {
     browser.notifications.create("port-scanning-notification", {
@@ -31,26 +34,26 @@ const addBlockedPortToHost = async (url, tabIdString) => {
     const port = "" + (url.port || getPortForProtocol(url.protocol));
 
     // Grab the blocked ports object from extensions storage
-    const blocked_ports = await getItemFromLocal("blocked_ports", {});
+    await modifyItemInLocal("blocked_ports", {},
+        (blocked_ports) => {
+            // Grab the array of ports blocked for the host url
+            const tab_hosts = blocked_ports[tabId] || {};
+            const hosts_ports = tab_hosts[host];
+            if (Array.isArray(hosts_ports)) {
+                // Add the port to the array of blocked ports for this host IFF the port doesn't exist
+                if (hosts_ports.indexOf(port) === -1 && port !== 'undefined') {
+                    const hosts_ports = tab_hosts[host].concat([port]);
+                    tab_hosts[host] = hosts_ports;
+                }
 
-    // Grab the array of ports blocked for the host url
-    const tab_hosts = blocked_ports[tabId] || {};
-    const hosts_ports = tab_hosts[host];
-    if (Array.isArray(hosts_ports)) {
-        // Add the port to the array of blocked ports for this host IFF the port doesn't exist
-        if (hosts_ports.indexOf(port) === -1 && port !== 'undefined') {
-            const hosts_ports = tab_hosts[host].concat([port]);
-            tab_hosts[host] = hosts_ports;
-        }
+            } else {
+                tab_hosts[host] = [port];
+            }
 
-    } else {
-        tab_hosts[host] = [port];
-    }
+            blocked_ports[tabId] = tab_hosts;
 
-    blocked_ports[tabId] = tab_hosts;
-
-    await setItemInLocal("blocked_ports", blocked_ports);
-    return;
+            return blocked_ports;
+        });
 }
 
 /**
@@ -63,19 +66,18 @@ const addBlockedTrackingHost = async (url, tabIdString) => {
     const tabId = parseInt(tabIdString);
     const host = url.host;
 
-    const blocked_hosts_tabs = await getItemFromLocal("blocked_hosts", {});
+    await modifyItemInLocal("blocked_hosts", {},
+        (blocked_hosts_tabs) => {
+            let blocked_hosts = blocked_hosts_tabs[tabId] || [];
 
-    let blocked_hosts = blocked_hosts_tabs[tabId] || [];
+            if (blocked_hosts.indexOf(host) === -1) {
+                blocked_hosts = blocked_hosts.concat([host]);
+            }
 
-    if (blocked_hosts.indexOf(host) === -1) {
-        blocked_hosts = blocked_hosts.concat([host]);
-    }
+            blocked_hosts_tabs[tabId] = blocked_hosts;
 
-    blocked_hosts_tabs[tabId] = blocked_hosts;
-    
-
-    await setItemInLocal("blocked_hosts", blocked_hosts_tabs);
-    return;
+            return blocked_hosts_tabs;
+        });
 }
 
 async function cancel(requestDetails) {
@@ -140,37 +142,30 @@ async function cancel(requestDetails) {
     return { cancel: false };
 } // end cancel()
 
-
 async function start() {  // Enables blocking
     try {
-        await browser.storage.local.clear();
-        localStorage.setItem("state", true);
-        setItemInLocal("allowed_domain_list", []);
         //Add event listener
         browser.webRequest.onBeforeRequest.addListener(
             cancel,
             { urls: ["<all_urls>"] }, // Match all HTTP, HTTPS, FTP, FTPS, WS, WSS URLs.
             ["blocking"] // if cancel() returns true block the request.
         );
+
+        await setItemInLocal("blocking_enabled", true);
     } catch (e) {
         console.log("START() ", e);
     }
-
 }
 
-function stop() {  // Disables blocking
+async function stop() {  // Disables blocking
     try {
-        localStorage.setItem("state", false);
         //Remove event listener
         browser.webRequest.onBeforeRequest.removeListener(cancel);
+
+        await setItemInLocal("blocking_enabled", false);
     } catch (e) {
         console.log("STOP() ", e);
     }
-
-}
-
-function setNotificationsAllowed(value) {  // toggles notifications
-    notificationsAllowed = value;
 }
 
 function isListening() { // returns if blocking is on
@@ -217,16 +212,20 @@ async function handleUpdated(tabId, changeInfo, tabInfo) {
             alerted: 0,
             lastURL: tabInfo.url
         };
-        
-	// Clear out the blocked ports for the current tab
-	const blocked_ports_object = await getItemFromLocal("blocked_ports", {});
-	blocked_ports_object[tabId] = {};
-	await setItemInLocal("blocked_ports", blocked_ports_object);
-        
-	// Clear out the hosts for the current tab
-	const blocked_hosts_object = await getItemFromLocal("blocked_hosts", {});
-	blocked_hosts_object[tabId] = [];
-	await setItemInLocal("blocked_hosts", blocked_hosts_object);
+
+        // Clear out the blocked ports for the current tab
+        await modifyItemInLocal("blocked_ports", {},
+            (blocked_ports_object) => {
+                blocked_ports_object[tabId] = {};
+                return blocked_ports_object;
+            });
+
+        // Clear out the hosts for the current tab
+        await modifyItemInLocal("blocked_hosts", {},
+            (blocked_hosts_object) => {
+                blocked_hosts_object[tabId] = [];
+                return blocked_hosts_object;
+            });
     }
 }
 
@@ -242,7 +241,7 @@ function onMessage(message, sender, sendResponse) {
       message.value ? start() : stop();
       break;
     case 'setNotificationsAllowed':
-      setNotificationsAllowed(message.value);
+      notificationsAllowed = message.value;
       break;
     default:
       console.warn('Port Authority: unknown message: ', message);
@@ -254,4 +253,13 @@ browser.runtime.onMessage.addListener(onMessage);
 start();
 // Call by each tab is updated.
 browser.tabs.onUpdated.addListener(handleUpdated);
-browser.runtime.onStartup.addListener(async () => { await browser.storage.local.clear() })
+
+// Is this good behavior? Wipes storage instead of allowing for persisting settings
+browser.runtime.onInstalled.addListener(() => {
+    console.log("Setting up initial values post installation")
+    clearLocalItems({
+        "allowed_domain_list": [],
+        "blocking_enabled": true,
+        "notifications_enabled": true
+    });
+ });
