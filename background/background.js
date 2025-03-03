@@ -1,140 +1,69 @@
-import { clearLocalItems, getItemFromLocal, setItemInLocal, modifyItemInLocal } from "../global/BrowserStorageManager.js";
-import { getPortForProtocol } from "../global/constants.js";
+import { getItemFromLocal, setItemInLocal, modifyItemInLocal,
+    addBlockedPortToHost, addBlockedTrackingHost, increaseBadge } from "./BrowserStorageManager.js";
 
-let badges = {};
-let notificationsAllowed = true;
+async function startup(){
+    // No need to check and initialize notification, state, and allow list values as they will 
+    // fall back to the default values until explicitly set
+    console.log("Startup called");
 
-function notifyPortScanning() {
-    browser.notifications.create("port-scanning-notification", {
-        "type": "basic",
-        "iconUrl": browser.runtime.getURL("icons/logo-96.png"),
-        "title": "This site attempted to port scan you!",
-        "message": "Port Authority has blocked this site from bypassing security measures and port scanning your private network."
-    });
-}
-
-function notifyThreatMetrix() {
-    browser.notifications.create("threatmetrix-notification", {
-        "type": "basic",
-        "iconUrl": browser.runtime.getURL("icons/logo-96.png"),
-        "title": "This site attempted to track you!",
-        "message": "Port Authority dynamically blocked a hidden LexisNexis endpoint from running an invasive data collection script."
-    });
-}
-
-/**
- * Adds the host and port of the provided url to a list of hosts and ports that were blocked from port scanning.
- * 
- * @param {string} tabId Id the of the browser tab the port check was executed in
- * @param {URL} url URL object built from the url of the tab associated with the tabID
- */
-const addBlockedPortToHost = async (url, tabIdString) => {
-    const tabId = parseInt(tabIdString);
-    const host = url.host.split(":")[0];
-    const port = "" + (url.port || getPortForProtocol(url.protocol));
-
-    // Grab the blocked ports object from extensions storage
-    await modifyItemInLocal("blocked_ports", {},
-        (blocked_ports) => {
-            // Grab the array of ports blocked for the host url
-            const tab_hosts = blocked_ports[tabId] || {};
-            const hosts_ports = tab_hosts[host];
-            if (Array.isArray(hosts_ports)) {
-                // Add the port to the array of blocked ports for this host IFF the port doesn't exist
-                if (hosts_ports.indexOf(port) === -1 && port !== 'undefined') {
-                    const hosts_ports = tab_hosts[host].concat([port]);
-                    tab_hosts[host] = hosts_ports;
-                }
-
-            } else {
-                tab_hosts[host] = [port];
-            }
-
-            blocked_ports[tabId] = tab_hosts;
-
-            return blocked_ports;
-        });
-}
-
-/**
- * Adds the host and port of the provided url to a list of hosts and ports that were blocked from port scanning.
- * 
- * @param {string} tabId Id the of the browser tab the port check was executed in
- * @param {URL} url URL object built from the url of the tab associated with the tabID
- */
-const addBlockedTrackingHost = async (url, tabIdString) => {
-    const tabId = parseInt(tabIdString);
-    const host = url.host;
-
-    await modifyItemInLocal("blocked_hosts", {},
-        (blocked_hosts_tabs) => {
-            let blocked_hosts = blocked_hosts_tabs[tabId] || [];
-
-            if (blocked_hosts.indexOf(host) === -1) {
-                blocked_hosts = blocked_hosts.concat([host]);
-            }
-
-            blocked_hosts_tabs[tabId] = blocked_hosts;
-
-            return blocked_hosts_tabs;
-        });
+	// Get the blocking state from cold storage
+    const state = await getItemFromLocal("blocking_enabled", true); 
+	if (state === true) {
+	    start();
+	} else {
+	    stop();
+	}
 }
 
 async function cancel(requestDetails) {
-    // This regex is explained here https://regex101.com/r/DOPCdB/17/ below I needed to change \b -> \\b
-    let local_filter = new RegExp("\\b(^(http|https|wss|ws|ftp|ftps):\/\/127[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/(10)([.](25[0-5]|2[0-4][0-9]|1[0-9]{1,2}|[0-9]{1,2})){3}|^(http|https|wss|ws|ftp|ftps):\/\/localhost|^(http|https|wss|ws|ftp|ftps):\/\/172[.](0?16|0?17|0?18|0?19|0?20|0?21|0?22|0?23|0?24|0?25|0?26|0?27|0?28|0?29|0?30|0?31)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/192[.]168[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/169[.]254[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\/([789]|1?[0-9]{2}))?\\b", "i");
-    // Create a regex to find all sub-domains for online-metrix.net  Explained here https://regex101.com/r/f8LSTx/2
-    let thm = new RegExp("online-metrix[.]net$", "i");
+    // First check the whitelist
+    let check_allowed_url;
+    try {
+        check_allowed_url = new URL(requestDetails.originUrl);
+    } catch {
+        console.error("Aborted filtering on domain due to unparseable domain: ", requestDetails.originUrl);
+        return { cancel: false }; // invalid origin
+    }
 
-    
     const allowed_domains_list = await getItemFromLocal("allowed_domain_list", []);
-    
-    const check_allowed_url = new URL(requestDetails.originUrl)
-
-    const domainIsWhiteListed = allowed_domains_list.some((domain) => check_allowed_url.host.includes(domain));
+    // Perform an exact match against the whitelisted domains (dont assume subdomains are allowed)
+    const domainIsWhiteListed = allowed_domains_list.some(
+        (domain) => check_allowed_url.host === domain
+    );
     if (domainIsWhiteListed){
+        console.debug("Aborted filtering on domain due to whitelist: ", check_allowed_url);
         return { cancel: false };
     }
 
+    // This regex is explained here https://regex101.com/r/LSL180/1 below I needed to change \b -> \\b
+    let local_filter = new RegExp("\\b(^(http|https|wss|ws|ftp|ftps):\/\/127[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/0.0.0.0|^(http|https|wss|ws|ftp|ftps):\/\/(10)([.](25[0-5]|2[0-4][0-9]|1[0-9]{1,2}|[0-9]{1,2})){3}|^(http|https|wss|ws|ftp|ftps):\/\/localhost|^(http|https|wss|ws|ftp|ftps):\/\/172[.](0?16|0?17|0?18|0?19|0?20|0?21|0?22|0?23|0?24|0?25|0?26|0?27|0?28|0?29|0?30|0?31)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/192[.]168[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/169[.]254[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\/([789]|1?[0-9]{2}))?\\b", "i");
+    // Create a regex to find all sub-domains for online-metrix.net  Explained here https://regex101.com/r/f8LSTx/2
+    let thm = new RegExp("online-metrix[.]net$", "i");
+
     // This reduces having to check this conditional multiple times
-    let is_requested_local = requestDetails.url.search(local_filter);
-    
+    let is_requested_local = local_filter.test(requestDetails.url);
     // Make sure we are not searching the CNAME of local addresses
-    if (is_requested_local !== 0) {
-        // Parse the URL
+    if (!is_requested_local) {
         let url = new URL(requestDetails.url);
         // Send a request to get the CNAME of the webrequest
         let resolving = await browser.dns.resolve(url.host, ["canonical_name"]);
         // If the CNAME redirects to a online-metrix.net domain -> Block
-        if (resolving.canonicalName.search(thm) !== -1) {
-            let tabId = requestDetails.tabId;
-            increaseBadged(requestDetails);
-            await addBlockedTrackingHost(url, tabId);
-            if (badges[tabId].alerted == 0 && notificationsAllowed) {
-                notifyThreatMetrix();
-                badges[tabId].alerted += 1;
-            }
+        if (thm.test(resolving.canonicalName)) {
+            console.debug("Blocking domain for being a threatmetrix match: ", {url: url, cname: resolving.canonicalName});
+            increaseBadge(requestDetails, true); // increment badge and alert
+            addBlockedTrackingHost(url, requestDetails.tabId);
             return { cancel: true };
         }
     }
 
     // Check if the network request is going to a local address
-    // search should return a 0 for the 0th index of the string
-    // if a match is further down the URL, it is probably a FP
-    if (is_requested_local === 0) {
-        // Check if the current website visited is a local address
-        if (requestDetails.originUrl.search(local_filter) !== 0) {
-            // Increase the badge counter
-            let tabId = requestDetails.tabId;
-            increaseBadged(requestDetails);
-
+    if (is_requested_local) {
+        // If URL in the address bar is a local address dont block the request
+        if (!local_filter.test(requestDetails.originUrl)) {
             let url = new URL(requestDetails.url);
-            await addBlockedPortToHost(url, tabId);
-            if (badges[tabId].alerted == 0 && notificationsAllowed) {
-                notifyPortScanning();
-                badges[tabId].alerted += 1;
-            }
-            // Cancel the request
+            console.debug("Blocking domain for portscanning: ", url);
+            increaseBadge(requestDetails, false); // increment badge and alert
+            addBlockedPortToHost(url, requestDetails.tabId);
             return { cancel: true };
         }
     }
@@ -151,9 +80,10 @@ async function start() {  // Enables blocking
             ["blocking"] // if cancel() returns true block the request.
         );
 
+        console.log("Attached `onBeforeRequest` listener successfully: blocking enabled");
         await setItemInLocal("blocking_enabled", true);
     } catch (e) {
-        console.log("START() ", e);
+        console.error("START() ", e);
     }
 }
 
@@ -162,40 +92,27 @@ async function stop() {  // Disables blocking
         //Remove event listener
         browser.webRequest.onBeforeRequest.removeListener(cancel);
 
+        console.log("Removed `onBeforeRequest` listener successfully: blocking disabled");
         await setItemInLocal("blocking_enabled", false);
     } catch (e) {
-        console.log("STOP() ", e);
+        console.error("STOP() ", e);
     }
 }
 
-function isListening() { // returns if blocking is on
-    return browser.webRequest.onBeforeRequest.hasListener(cancel);
-}
+async function isListening() { // returns if blocking is on
+    const storage_state = await getItemFromLocal("blocking_enabled", true);
+    const listener_attached_state = browser.webRequest.onBeforeRequest.hasListener(cancel);
 
-/**
- * Increases the badged by one.
- * Borrowed and modified from https://gitlab.com/KevinRoebert/ClearUrls/-/blob/master/core_js/badgedHandler.js
- */
-function increaseBadged(request) {
-    // Error check
-    if (request === null) return;
-
-    const tabId = request.tabId;
-    const url = request.url;
-
-    if (tabId === -1) return;
-
-    if (badges[tabId] == null) {
-        badges[tabId] = {
-            counter: 1,
-            alerted: 0,
-            lastURL: url
-        };
-    } else {
-        badges[tabId].counter += 1;
+    // If storage says that blocking is enabled when it actually isn't, soft throw an error to the console
+    if (storage_state !== listener_attached_state) {
+        console.error("Mismatch in blocking state according to storage value and listener attached status:", {
+            storage_state,
+            listener_attached_state
+        });
     }
-    browser.browserAction.setBadgeText({ text: (badges[tabId]).counter.toString(), tabId: tabId });
 
+    // Rely on the actual listener being attached as the ground source of truth over what storage says
+    return listener_attached_state;
 }
 
 /**
@@ -204,6 +121,8 @@ function increaseBadged(request) {
  * Borrowed and modified from https://gitlab.com/KevinRoebert/ClearUrls/-/blob/master/core_js/badgedHandler.js
  */
 async function handleUpdated(tabId, changeInfo, tabInfo) {
+    // TODO investigate a better way to interact with current locking practices
+    const badges = await getItemFromLocal("badges", {});
     if (!badges[tabId] || !changeInfo.url) return;
 
     if (badges[tabId].lastURL !== changeInfo.url) {
@@ -212,37 +131,49 @@ async function handleUpdated(tabId, changeInfo, tabInfo) {
             alerted: 0,
             lastURL: tabInfo.url
         };
+        await setItemInLocal("badges", badges);
 
         // Clear out the blocked ports for the current tab
         await modifyItemInLocal("blocked_ports", {},
             (blocked_ports_object) => {
-                blocked_ports_object[tabId] = {};
+                delete blocked_ports_object[tabId];
                 return blocked_ports_object;
             });
 
         // Clear out the hosts for the current tab
         await modifyItemInLocal("blocked_hosts", {},
             (blocked_hosts_object) => {
-                blocked_hosts_object[tabId] = [];
+                delete blocked_hosts_object[tabId];
                 return blocked_hosts_object;
             });
     }
 }
 
-function onMessage(message, sender, sendResponse) {
+async function onMessage(message, sender) {
+  // Add origin check for security
+  const extensionOrigin = new URL(browser.runtime.getURL("")).origin;
+  if (sender.url !== `${extensionOrigin}/popup/popup.html`) {
+    console.warn('Message from unexpected origin:', sender.url);
+    return;
+  }
+
   switch(message.type) {
     case 'popupInit':
-      sendResponse({
-        isListening: isListening(),
-        notificationsAllowed,
-      });
-      break;
+      return {
+        isListening: await isListening(),
+        notificationsAllowed: await getItemFromLocal("notificationsAllowed", true),
+      };
     case 'toggleEnabled':
-      message.value ? start() : stop();
+      message.value ? await start() : await stop();
+      break;
+    case 'setItemInLocal':
+      await setItemInLocal(message.key, message.value);
       break;
     case 'setNotificationsAllowed':
-      notificationsAllowed = message.value;
+      await setItemInLocal("notificationsAllowed", message.value);
       break;
+    case 'getItemInLocal':
+      return await getItemFromLocal(message.key, message.defaultValue);
     default:
       console.warn('Port Authority: unknown message: ', message);
       break;
@@ -250,16 +181,6 @@ function onMessage(message, sender, sendResponse) {
 }
 browser.runtime.onMessage.addListener(onMessage);
 
-start();
+startup();
 // Call by each tab is updated.
 browser.tabs.onUpdated.addListener(handleUpdated);
-
-// Is this good behavior? Wipes storage instead of allowing for persisting settings
-browser.runtime.onInstalled.addListener(() => {
-    console.log("Setting up initial values post installation")
-    clearLocalItems({
-        "allowed_domain_list": [],
-        "blocking_enabled": true,
-        "notifications_enabled": true
-    });
-});
