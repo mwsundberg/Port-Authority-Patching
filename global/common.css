@@ -15,6 +15,8 @@
 body {
     box-sizing: border-box;
     margin: 0;
+    min-height: 100vh;
+    min-width: fit-content;
 
     user-select: none;
 
@@ -28,7 +30,35 @@ body {
     background-color: var(--red);
     color: var(--background);
 }
+.warning-text {
+    /* TODO improve readability */
+    color: var(--red);
+}
 
+/* Want to default disallow text selection for things like options labels but selectively enable it for copyable data like banned IPs or the whitelist */
 .selectable {
     user-select: text;
+}
+
+.inline {
+    display: inline;
+}
+
+/* Flex-based layout helpers*/
+.flex-row {
+    display: flex;
+    align-items: center;
+}
+
+.flex-flip {
+    display: flex;
+    flex-direction: row-reverse;
+}
+
+.align-center {
+    justify-content: center;
+}
+
+.align-right {
+    justify-content: flex-end;
 }

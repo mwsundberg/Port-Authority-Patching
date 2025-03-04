@@ -1,0 +1,57 @@
+body {
+    min-width: 200px;
+}
+
+h1,
+h2 {
+    margin: 0;
+}
+
+/* Header */
+header {
+    margin: 0;
+    padding: min(2rem, 20px) min(5ch, 30px);
+    background-color: var(--red);
+    color: var(--background);
+}
+
+header img {
+    /* Visual alignment tweaks, finicky */
+    margin-bottom: -5px;
+    margin-right: 5px;
+    margin-left: -5px;
+}
+
+/* Options */
+#settings {
+    text-decoration: none;
+    color: var(--foreground);
+    margin: min(0.5rem, 10px) min(1ch, 7px);
+}
+
+#settings h2 {
+    font-size: 1.25rem;
+}
+
+#settings img {
+    margin-left: 2.5px;
+}
+
+#settings:hover {
+    /* Slightly hacky yet since the img isn't a svg and stylable this is the best way to indicate hover state */
+    opacity: 0.75;
+}
+
+/* Switches */
+.switch {
+    padding: min(0.25rem, 7px) min(1ch, 7px);
+}
+
+.slider {
+    margin-inline: min(1ch, 7px);
+}
+
+/* Data populated zones */
+.unpopulated {
+    display: none;
+}
