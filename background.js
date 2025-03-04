@@ -15,7 +15,50 @@ async function startup(){
 	}
 }
 
+const oldRegex = new RegExp("\\b(^(http|https|wss|ws|ftp|ftps):\/\/127[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/0.0.0.0|^(http|https|wss|ws|ftp|ftps):\/\/(10)([.](25[0-5]|2[0-4][0-9]|1[0-9]{1,2}|[0-9]{1,2})){3}|^(http|https|wss|ws|ftp|ftps):\/\/localhost|^(http|https|wss|ws|ftp|ftps):\/\/172[.](0?16|0?17|0?18|0?19|0?20|0?21|0?22|0?23|0?24|0?25|0?26|0?27|0?28|0?29|0?30|0?31)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/192[.]168[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/169[.]254[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\/([789]|1?[0-9]{2}))?\\b", "i");
+/**
+ * isLocalURL aims to replace the current Regex based host matching
+ * @param {URL} url
+ * @returns {boolean}
+ */
+function isLocalURL(url) {
+    // URL.hostname is what we need to compare against when blocking:
+    // `https:// [developer.mozilla.org.] :1234/en-US/docs/Web/API/URL/hostname`
+    const _hostname = url.hostname;
+
+    // Remove trailing dot on fully qualified domains: https://en.wikipedia.org/wiki/Fully_qualified_domain_name
+    const hostname = _hostname.replace(/\.*$/, '');
+    
+    // Matching with a greedy || that will stop checking as soon as it gets a match
+    if (hostname === "localhost" ||
+        hostname.endsWith(".local")
+    ) {
+        console.log("Matched local domain from new function: '" + hostname + "'");
+        return true;
+    } else {
+        // Fallback on the regex response:
+        console.log("Falling back on the old regex filter:  '" + hostname + "'");
+        return oldRegex.test(url);
+    }
+}
+// To smooth transition to new function
+const isLocalWrapper = {
+    test: (string) => {
+        return isLocalURL(new URL(string));
+    }
+}
+
+/**
+ * The main function that is called on every request and determines if it should be blocked or not
+ * @param {Object} requestDetails Full specification of `requestDetails`: {@link https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onBeforeRequest#details | MDN page}
+ * @returns 
+ */
 async function cancel(requestDetails) {
+    // Request logging (for debug purposes) hacked onto the notifications setting
+    if (await getItemFromLocal("notificationsAllowed", false)) {
+        console.debug("requestDetails:", requestDetails);
+    }
+
     // First check the whitelist
     let check_allowed_url;
     try {
@@ -36,7 +79,7 @@ async function cancel(requestDetails) {
     }
 
     // This regex is explained here https://regex101.com/r/LSL180/1 below I needed to change \b -> \\b
-    let local_filter = new RegExp("\\b(^(http|https|wss|ws|ftp|ftps):\/\/127[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/0.0.0.0|^(http|https|wss|ws|ftp|ftps):\/\/(10)([.](25[0-5]|2[0-4][0-9]|1[0-9]{1,2}|[0-9]{1,2})){3}|^(http|https|wss|ws|ftp|ftps):\/\/localhost|^(http|https|wss|ws|ftp|ftps):\/\/172[.](0?16|0?17|0?18|0?19|0?20|0?21|0?22|0?23|0?24|0?25|0?26|0?27|0?28|0?29|0?30|0?31)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/192[.]168[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|^(http|https|wss|ws|ftp|ftps):\/\/169[.]254[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.](?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\/([789]|1?[0-9]{2}))?\\b", "i");
+    let local_filter = isLocalWrapper;
     // Create a regex to find all sub-domains for online-metrix.net  Explained here https://regex101.com/r/f8LSTx/2
     let thm = new RegExp("online-metrix[.]net$", "i");
 
