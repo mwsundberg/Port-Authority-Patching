@@ -1,5 +1,6 @@
 import { getItemFromLocal } from "../global/BrowserStorageManager.js";
-import { getActiveTabId, isObjectEmpty } from "../global/utils.js";
+import { isObjectEmpty } from "../global/utils.js";
+import { getActiveTabId } from "../global/browserActions.js";
 
 function buildSectionWrapper() {
     return document.createElement("div");
