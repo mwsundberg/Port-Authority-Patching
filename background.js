@@ -29,83 +29,107 @@ const oldRegex = new RegExp("\\b(^(http|https|wss|ws|ftp|ftps):\/\/127[.](?:25[0
  * @returns {boolean}
  */
 function isLocalURL(url) {
-    // URL.hostname is what we need to compare against when blocking:
-    // `https:// [developer.mozilla.org.] :1234/en-US/docs/Web/API/URL/hostname`
-    const _hostname = url.hostname;
+    if (!(url instanceof URL)) console.warn("Passed non-URL to isLocalURL", {url});
 
+    // Catch `file:///` urls
+    if (url.protocol === "file:") {
+        console.warn("New matcher hit a file:/// URL, deferring to regex: '" + url + "'");
+        return oldRegex.test(url);
+    }
+
+    // URL.hostname is what we need to compare against when blocking:
+    // `protocol://user:pass@ [sub.example.tld.] :1234/path/#hash`
+    const _hostname = url.hostname;
     // Remove trailing dot on fully qualified domains: https://en.wikipedia.org/wiki/Fully_qualified_domain_name
     const hostname = _hostname.replace(/\.*$/, '');
 
     // Extract the TLD (note this doesn't get the *true* TLD since `.co.uk` is captured just as `.uk`)
     const hostname_dot_chunks = hostname.split('.');
     const tld = hostname_dot_chunks.at(-1);
-    
+
     ////////////// Non-IP LAN access
     // IANA list of TLD-esques and relevant RFC numbers: https://www.iana.org/assignments/special-use-domain-names/special-use-domain-names.xhtml
-    // RFC covering most of them (missing `.local`, `.internal`, DNS related ones like `home.arpa`, etc): https://datatracker.ietf.org/doc/html/rfc6761#section-6
     if (
-        // Localhost, see: https://datatracker.ietf.org/doc/html/rfc6761#section-6.3
+        // Loopback, see: https://datatracker.ietf.org/doc/html/rfc6761#section-6.3
         // Still using `tld` over `hostname` to support VMs' use of subdomains, eg. `http://wsl.localhost`, see: https://learn.microsoft.com/en-us/windows/wsl/release-notes#:~:text=Switch%20the%20%5Cwsl%20prefix%20to%20%5Cwsl%2Elocalhost
         tld === "localhost" ||
         // Link-local/mDNS, see: https://datatracker.ietf.org/doc/html/rfc6762
         tld === "local" ||
-        // Proposed private but not solely LAN TLD, see: https://en.wikipedia.org/wiki/.internal, https://datatracker.ietf.org/doc/html/draft-davies-internal-tld-02
-        tld === 'internal' ||
+        // Proposed private but not solely LAN TLD, see: https://en.wikipedia.org/wiki/.internal, https://datatracker.ietf.org/doc/html/draft-davies-internal-tld-03
+        tld === "internal" ||
         // Alternative home networking method, see: https://datatracker.ietf.org/doc/html/rfc8375 or https://en.wikipedia.org/wiki/.arpa
-        hostname.endsWith(".home.arpa") ||
-        // Auto-mapped IPv4 domains (order (little-endian) is reversed from IP addresses, eg. `1.0.168.192.in-addr.arpa`), see: https://datatracker.ietf.org/doc/html/rfc6761#section-6.1
-        hostname.endsWith("10.in-addr.arpa") ||      /* 10.0.0.0/8     */
-        hostname.endsWith("168.192.in-addr.arpa") || /* 192.168.0.0/16 */
-        (hostname.endsWith("172.in-addr.arpa") &&    /* 172.16.0.0/12  // TODO improve formatting */
-            [16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
-                .some((n) => hostname.endsWith("" + n + ".172.in-addr.arpa")))
+        hostname.endsWith(".home.arpa")
+        // IPv4 `.in-addr.arpa` and IPv6 `.ip6.arpa` domains handled below with other addresses of their type
     ) {
-        console.debug("New matcher success:  ✔️'" + hostname + "'");
+        console.debug("New matcher TLD success:  ✔️: '" + hostname + "'");
         return true;
     }
 
-    // IPv4 (must match the *full* hostname, not just the start. Otherwise `127.0.0.1.example.com` counts, which shouldn't)
-    // Private IP ranges spec: https://datatracker.ietf.org/doc/html/rfc1918#section-3
-    // More informative Wikipedia page: https://en.wikipedia.org/wiki/IPv4#Special-use_addresses
-    const ip4_numeric_chunks = hostname_dot_chunks.map((b) => parseInt(b));
+
+    // Resolve IPv4 via `.in-addr.arpa` or directly parsed
+    const ip4_numeric_chunks = (hostname.endsWith('.in-addr.arpa') ? (
+        // Cut the end off and flip since `.in-addr.arpa` displays in little-endian
+        hostname_dot_chunks
+            .toSpliced(-2) // As to not mutate `hostname_dot_chunks`
+            .reverse()
+    ) : hostname_dot_chunks)
+        // Parse as numbers
+        .map((b) => parseInt(b));
+
+    ////////////// IPv4
+    // Compiled list on Wikipedia: https://en.wikipedia.org/wiki/IPv4#Special-use_addresses
+    // RFC 1918: 'Address Allocation for Private Internets' (1996): https://datatracker.ietf.org/doc/html/rfc1918#section-3
+    // RFC 6890: 'Special-Purpose IP Address Registries' (2013): https://datatracker.ietf.org/doc/html/rfc6890
     if (
+        // Must match the *full* hostname, not just the start. Otherwise `127.0.0.1.example.com` will be misinterpreted
         ip4_numeric_chunks.length === 4 &&
         // Check that everything is a number and byte-sized
-        ip4_numeric_chunks.every((b)=>(!isNaN(b) && 0 <= b && b < 256))
+        ip4_numeric_chunks.every((b) => (!isNaN(b) && 0 <= b && b < 256))
     ) {
         // Since the `if` guarantees only 4 values it's safe to extract now
-        const [ip_1, ip_2, ip_3, ip_4] = ip_numeric;
+        const [ip_1, ip_2, ip_3, ip_4] = ip4_numeric_chunks;
 
         // // Parse into a 32bit big-endian integer (would be easier for bitmask based matching yet sacrifices readability, put on hold)
+        // // TODO reconsider after speed profiling, bitwise operations are *very* fast
         // const ip_32bit = ip4_numeric_chunks.reduce((accumulated, current) => (accumulated * 256 + current), 0);
 
         // Actual matching
         if (
+            // Loopback
             /* 127.  0.0.0 /8  */ (ip_1 === 127) ||
             /*   0.  0.0.0 /8  */ (ip_1 === 0) ||
+            // Link-local/mDNS related
+            /* 169.254.0.0 /16 */ (ip_1 === 169 && ip_2 === 254) ||
+            /* 224.0.0.251 /32 */ (ip_1 === 224 && ip_2 === 0 && ip_3 === 0 && ip_4 === 251) ||
+            // Private use 
             /*  10.  0.0.0 /8  */ (ip_1 === 10) ||
             /* 172. 16.0.0 /12 */ (ip_1 === 172 && (ip_2 >= 16 && ip_2 < 32)) ||
             /* 192.168.0.0 /16 */ (ip_1 === 192 && ip_2 === 168)
         ) {
-            console.debug("New matcher success:  ✔️'" + hostname + "'");
+            console.debug("New matcher IPv4 success: ✔️: '" + hostname + "'");
             return true;
         }
-
-    }
-    // IPv6
-    if(false) {
-        // TODO
     }
 
-    // Fallback on the regex response:
-    console.warn("New matcher fallback: ❌'" + url + "'");
+    ////////////// IPv4
+    if (false) {
+        // Link-local/mDNS related: FE80::/10
+    }
+
+    // Fallback on the regex (with a warning to track down the last cases)
+    console.warn("New matcher fallback:      ❌: '" + url + "'");
     return oldRegex.test(url);
-
 }
+
 // To smooth transition to new function
 const isLocalWrapper = {
     test: (string) => {
-        return isLocalURL(new URL(string));
+        try {
+            return isLocalURL(new URL(string));
+        } catch (e) {
+            console.error("Error in wrapper for `isLocalURL`, defering to regex: '" + string + "'", e);
+            return oldRegex.test(string);
+        }
     }
 }
 
