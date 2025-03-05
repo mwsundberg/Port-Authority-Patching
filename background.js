@@ -60,7 +60,7 @@ function isLocalURL(url) {
             [16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
                 .some((n) => hostname.endsWith("" + n + ".172.in-addr.arpa")))
     ) {
-        console.log("Matched local domain from new function: '" + hostname + "'");
+        console.debug("New matcher success:  ✔️'" + hostname + "'");
         return true;
     }
 
@@ -84,20 +84,21 @@ function isLocalURL(url) {
             /* 127.  0.0.0 /8  */ (ip_1 === 127) ||
             /*   0.  0.0.0 /8  */ (ip_1 === 0) ||
             /*  10.  0.0.0 /8  */ (ip_1 === 10) ||
-            /* 192.168.0.0 /16 */ (ip_1 === 172 && (ip_2 >= 16 && ip_2 < 32)) ||
-            /* 172. 16.0.0 /12 */ (ip_1 === 192 && ip_2 === 168)
+            /* 172. 16.0.0 /12 */ (ip_1 === 172 && (ip_2 >= 16 && ip_2 < 32)) ||
+            /* 192.168.0.0 /16 */ (ip_1 === 192 && ip_2 === 168)
         ) {
+            console.debug("New matcher success:  ✔️'" + hostname + "'");
             return true;
         }
 
     }
     // IPv6
     if(false) {
-
+        // TODO
     }
 
     // Fallback on the regex response:
-    console.log("Falling back on the old regex filter:  '" + hostname + "'");
+    console.warn("New matcher fallback: ❌'" + url + "'");
     return oldRegex.test(url);
 
 }
